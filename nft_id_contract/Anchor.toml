@@ -4,15 +4,15 @@
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-nft_id_contract = "5RZseTAbe1oif9o1m8umfrFcAdztYMkXetww8HKnLDFj"
+[programs.devnet]
+nft_id_contract = "7LwZn7j96YeNkTot1FuLorL6Js7uM6ma4Z3nNWL6H9QJ"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
-wallet = "~/.config/solana/id.json"
+wallet = "./.anchor/deployer-wallet.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
