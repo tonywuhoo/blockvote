@@ -1,3 +1,32 @@
+# Rust build artifacts
+target/
+**/target/
+Cargo.lock
+# Allow sharing the program keypair
+!.anchor/nft_id_contract-keypair.json
+!.anchor/deployer-wallet.json
+
+# Anchor build artifacts
+.melon/
+.anchor/
+.docker/
+programs/**/target/
+tests/target/
+tests/node_modules/
+
+# Node.js & TypeScript
+node_modules/
+dist/
+**/node_modules/
+
+# Keys (DANGEROUS to push)
+program-keypair.json
+id.json
+
+# VSCode & MacOS
+.vscode/
+.DS_Store
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

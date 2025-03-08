@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BlockVote NFT ID Contract - Developer Guide
 
-## Getting Started
+## 🔹 How to Verify You’re Using the Same Program ID & Deployment Wallet  
 
-First, run the development server:
+### Check If You’re Using the Correct Program ID  
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+# Run the following command:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+solana address -k .anchor/nft_id_contract-keypair.json
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# If the output matches the expected Program ID:
+# 7LwZn7j96YeNkTot1FuLorL6Js7uM6ma4Z3nNWL6H9QJ
+# Then you are using the correct contract.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+### Check If You’re Using the Shared Deployment Wallet  
+# Verify your active Solana wallet:
+solana address
 
-To learn more about Next.js, take a look at the following resources:
+# ✅ If the output matches the expected Developer Wallet:
+# 6SRJLj1E8eDZ78iXcMoHB25mWAWZaCDHxMqKwsNZ9Gti
+# Then you are using the correct wallet.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# If not, set it manually:
+solana config set --keypair .anchor/deployer-wallet.json
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🔹 How Program ID & Deployment Wallet Are Connected
+# - The **Program ID (7LwZn...)** is tied to the **initial deployment**.
+# - The **Developer Wallet (6SRJL...)** is the **upgrade authority** for the contract.
+# - If a different wallet deploys, **a new Program ID is created**, which creates a new contract. 
+# - Using the same **wallet & keypair** ensures all team members interact with the **same contract**.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
