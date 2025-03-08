@@ -5,3 +5,7 @@ node_modules
 dist
 build
 test-ledger
+
+# Allow sharing the program keypair
+!.anchor/nft_id_contract-keypair.json
+!.anchor/deployer-wallet.json

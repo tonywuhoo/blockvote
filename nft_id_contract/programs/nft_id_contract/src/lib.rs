@@ -69,9 +69,6 @@ mod nft_id_contract {
     }
 
     pub fn burn_token(ctx: Context<BurnToken>, amount: u64) -> Result<()> {
-        // let seeds = &["mint".as_bytes(), &[ctx.bumps.mint]];
-        // let signer = [&seeds[..]];
-
         let cpi_accounts = Burn {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.from.to_account_info(),
@@ -79,10 +76,7 @@ mod nft_id_contract {
         };
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
-        // Create the CpiContext we need for the request
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-
-        // Execute anchor's helper function to burn tokens
         token::burn(cpi_ctx, amount)?;
          
         msg!("Token burned successfully.");
@@ -145,16 +139,16 @@ pub struct InitTokenParams {
     pub decimals: u8,
 }
 
-
 #[derive(Accounts)]
 pub struct BurnToken<'info> {
-    /// CHECK: This is the token that we want to mint
     #[account(mut)]
     pub mint: Account<'info, Mint>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK: This is the token account that we want to mint tokens to
+
     #[account(mut)]
-    pub from: AccountInfo<'info>,
-    /// CHECK: the authority of the mint account
-    pub authority: Signer<'info>,
+    pub token_account: Account<'info, TokenAccount>,
+
+    #[account(signer)]
+    pub owner: Signer<'info>,
+
+    pub token_program: Program<'info, Token>,
 }

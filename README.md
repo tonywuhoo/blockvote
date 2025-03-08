@@ -19,7 +19,7 @@ solana address -k .anchor/nft_id_contract-keypair.json
 solana address
 
 # ✅ If the output matches the expected Developer Wallet:
-# 6SRJLj1E8eDZ78iXcMoHB25mWAWZaCDHxMqKwsNZ9Gti
+# 6onynqatHCjAQSV2mPhiPvgSWqvoXnbb9WjLTHGE2UgM
 # Then you are using the correct wallet.
 
 # If not, set it manually:
