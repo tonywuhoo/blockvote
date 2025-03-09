@@ -1,167 +1,154 @@
 import * as anchor from "@coral-xyz/anchor";
-import * as web3 from "@solana/web3.js";
-import assert from "assert";
-import BN from "bn.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { NftIdContract } from "../target/types/nft_id_contract";
-import { associatedAddress } from "@coral-xyz/anchor/dist/cjs/utils/token";
-import {
-  TOKEN_PROGRAM_ID,
-  MINT_SIZE,
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddress,
-  createInitializeMintInstruction,
-} from "@solana/spl-token";
+import { assert } from "chai";
 
-describe("NFT ID Minting", () => {
-  // Configure the client to use the local cluster.
+describe("NFT ID Contract", () => {
+  // Set the provider from the environment
   anchor.setProvider(anchor.AnchorProvider.env());
-
   const program = anchor.workspace.NftIdContract as anchor.Program<NftIdContract>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+  const payer = provider.wallet as anchor.Wallet;
 
-  // Generate a random keypair that will represent our token
-  const mintKey: anchor.web3.Keypair = anchor.web3.Keypair.generate();
+  // PDAs and bump
+  let mint: PublicKey;
+  let metadata: PublicKey;
+  let tokenData: PublicKey;
+  let registry: PublicKey;
+  let destination: PublicKey;
+  let mintBump: number;
 
-  const key = anchor.AnchorProvider.env().wallet.publicKey;
-
-  let associatedTokenAccount = undefined;
-
-  const METADATA_SEED = "metadata";
-  const TOKEN_METADATA_PROGRAM_ID = new web3.PublicKey(
+  // Metaplex metadata program ID (standard)
+  const metadataProgramId = new PublicKey(
     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
   );
 
-  const MINT_SEED = "mint";
-  const payer = program.provider.publicKey;
-  const metadata = {
-    name: "BlockVote NFT ID Token",
-    symbol: "BVID",
-    uri: "https://app.ardrive.io/#/file/c23a694e-a621-47fb-a61b-76496089db11/view",
-    decimals: 9
-  }
-  const mintAmount = 1;
+  // Identity parameters for minting
+  const name = "John Doe";
+  const dob = "1990-01-01";
+  const gender = "Male";
 
-  const [mint] = web3.PublicKey.findProgramAddressSync(
-    [Buffer.from(MINT_SEED)],
-    program.programId
-  );
+  before(async () => {
+    // Derive PDAs for mint, metadata, tokenData, and registry.
+    [mint, mintBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mint")],
+      program.programId
+    );
+    [metadata] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), metadataProgramId.toBuffer(), mint.toBuffer()],
+      metadataProgramId
+    );
+    [tokenData] = PublicKey.findProgramAddressSync(
+      [Buffer.from("token_data"), mint.toBuffer()],
+      program.programId
+    );
+    [registry] = PublicKey.findProgramAddressSync(
+      [Buffer.from("registry")],
+      program.programId
+    );
 
-  const [metadataAddress] = web3.PublicKey.findProgramAddressSync(
-    [
-      Buffer.from(METADATA_SEED),
-      TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-      mint.toBuffer(),
-    ],
-    TOKEN_METADATA_PROGRAM_ID
-  );
-
-  
-
-  it("Initialize", async () => {
-
-    
-
-    const info = await program.provider.connection.getAccountInfo(mint);
-    if (info) {
-      return; // Do not attempt to initialize if already initialized
-    }
-    console.log(" Mint not found. Initializing Program...");
-
-    const context = {
-      metadata: metadataAddress,
+    // Derive the associated token account for the destination.
+    destination = await anchor.utils.token.associatedAddress({
       mint,
-      payer,
-      rent: web3.SYSVAR_RENT_PUBKEY,
-      systemProgram: web3.SystemProgram.programId,
-      tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-      tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-    };
-
-
-    const txHash = await program.methods
-      .initiateToken(metadata)
-      .accounts(context)
-      .rpc();
-
-    await program.provider.connection.confirmTransaction(txHash, "finalized");
-    console.log(`  https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
-    const newInfo = await program.provider.connection.getAccountInfo(mint);
-    assert(newInfo, "  Mint should be initialized.");
-  });
-
-  it("mint tokens", async () => {
-    const destination = await anchor.utils.token.associatedAddress({
-      mint: mint,
-      owner: payer,
+      owner: payer.publicKey,
     });
 
-    let initialBalance: number;
+    console.log("Mint:", mint.toBase58());
+    console.log("Metadata:", metadata.toBase58());
+    console.log("Token Data:", tokenData.toBase58());
+    console.log("Registry:", registry.toBase58());
+    console.log("Destination ATA:", destination.toBase58());
 
-    try {
-      const balance = await program.provider.connection.getTokenAccountBalance(destination);
-      initialBalance = balance.value.uiAmount;
-    } catch {
-      // Token account not yet initiated has 0 balance
-      initialBalance = 0;
-    }
+    // Initialize the registry if it doesn't already exist.
+    const initRegistryTx = await program.methods
+      .initializeRegistry()
+      .accounts({
+        tokenRegistry: registry,
+        payer: payer.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+    console.log("Registry Initialized:", initRegistryTx);
+  });
 
-    const context = {
+  it("Mints an NFT identity", async () => {
+    const accounts = {
+      metadata,
       mint,
+      tokenData,
       destination,
-      payer,
-      rent: web3.SYSVAR_RENT_PUBKEY,
-      systemProgram: web3.SystemProgram.programId,
+      payer: payer.publicKey,
+      tokenRegistry: registry,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      systemProgram: SystemProgram.programId,
       tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
       associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-    };
+      tokenMetadataProgram: metadataProgramId,
+    } as any; // Bypass excess property checks
 
-    const txHash = await program.methods
-      .mintTokens(new BN(mintAmount * 10 ** metadata.decimals))
-      .accounts(context)
+    const tx = await program.methods
+      .initiateToken({ name, dob, gender })
+      .accounts(accounts)
       .rpc();
-    await program.provider.connection.confirmTransaction(txHash);
-    console.log(`  https://explorer.solana.com/tx/${txHash}?cluster=devnet`);
 
-    const postBalance = (
-      await program.provider.connection.getTokenAccountBalance(destination)
-    ).value.uiAmount;
-    assert.equal(
-      initialBalance + mintAmount,
-      postBalance,
-      "Compare balances, it must be equal"
-    );
-
-    // Get the ATA for a token and the account that we want to own the ATA (but it might not existing on the SOL network yet)
-    associatedTokenAccount = await getAssociatedTokenAddress(
-      mintKey.publicKey,
-      key
-    );
-  });
-  it("Burn token", async () => {
-
-    
-    const from = await getAssociatedTokenAddress(mint, key);
-    // Get anchor's wallet's public key
-    const balance =  1;
-    console.log("balance-", balance)
-
-    const context = {
-      mint: mintKey.publicKey,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      from: associatedTokenAccount,
-      authority: key,
-    }
-
-    const txBurn = await program.methods.burnToken(new anchor.BN(mintAmount * 10 ** metadata.decimals)).accounts(
-      context).rpc();
-
-    await program.provider.connection.confirmTransaction(txBurn);
-    console.log(`  https://explorer.solana.com/tx/${txBurn}?cluster=devnet`);
-    const postBalance = (
-      await program.provider.connection.getTokenAccountBalance(from)
-    ).value.uiAmount;
-    console.log("Burn Successful", postBalance);
+    console.log("NFT Minted Tx:", tx);
+    const tokenDataAccount = await program.account.tokenData.fetch(tokenData);
+    // Check that the on-chain identity record is marked active.
+    assert(tokenDataAccount.is_active === true, "NFT should be active.");
   });
 
+  it("Burns and closes the NFT identity then re-mints", async () => {
+    // Call the burn_token instruction to burn the NFT and mark token_data inactive.
+    const burnTx = await program.methods
+      .burnToken()
+      .accounts({
+        tokenData,
+        destination,
+        mint,
+        payer: payer.publicKey,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+    console.log("Burn Tx:", burnTx);
+
+    // Call close_identity to remove the identity record and close token_data.
+    const closeTx = await program.methods
+      .closeIdentity()
+      .accounts({
+        tokenData,
+        tokenRegistry: registry,
+        payer: payer.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+    console.log("Close Identity Tx:", closeTx);
+
+    // Re‑mint a new NFT identity with updated parameters.
+    const newName = "John Smith";
+    const newDob = "1990-01-01"; // Example: same DOB for testing
+    const newGender = "Male";
+
+    const accounts = {
+      metadata,
+      mint,
+      tokenData,
+      destination,
+      payer: payer.publicKey,
+      tokenRegistry: registry,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+      tokenMetadataProgram: metadataProgramId,
+    } as any;
+
+    const remintTx = await program.methods
+      .initiateToken({ name: newName, dob: newDob, gender: newGender })
+      .accounts(accounts)
+      .rpc();
+    console.log("Re-mint Tx:", remintTx);
+
+    const tokenDataAccountAfter = await program.account.tokenData.fetch(tokenData);
+    assert(tokenDataAccountAfter.is_active === true, "Re-minted NFT should be active.");
+  });
 });
-
-
