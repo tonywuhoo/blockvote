@@ -5,12 +5,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_id_contract = "GgLTHPo25XiFsQJAkotD3KPiyMFeypJhUSx4UVcxfjcj"
+nft_id_contract = "G1AMtv7feMb51dTC2i2JhTMfBfBKc5HUomGj1szPaE74"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "./.anchor/deployer-wallet.json"
 
 [scripts]
