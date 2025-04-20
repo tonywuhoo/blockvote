@@ -5,6 +5,5 @@ target
 node_modules
 test-ledger
 .yarn
-# Allow sharing the program keypair
 !.anchor/nft_id_contract-keypair.json
 !.anchor/deployer-wallet.json

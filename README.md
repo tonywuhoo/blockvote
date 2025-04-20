@@ -9,7 +9,7 @@
 solana address -k .anchor/nft_id_contract-keypair.json
 
 # If the output matches the expected Program ID:
-# 7LwZn7j96YeNkTot1FuLorL6Js7uM6ma4Z3nNWL6H9QJ
+# GgLTHPo25XiFsQJAkotD3KPiyMFeypJhUSx4UVcxfjcj
 # Then you are using the correct contract.
 
 ---

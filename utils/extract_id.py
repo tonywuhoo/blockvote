@@ -1,14 +1,12 @@
 from flask import Flask, request, jsonify
 import os
-import json
 import re
 from google.cloud import vision
-from flask_cors import CORS  # ✅ Enable frontend-backend communication
+from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # ✅ Allow frontend to access API
+CORS(app)
 
-# ✅ Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "named-sunset-453004-p9-2a2a8558a42d.json"
 client = vision.ImageAnnotatorClient()
 
@@ -17,51 +15,46 @@ def extract_info_from_image(image_content):
     image = vision.Image(content=image_content)
     response = client.text_detection(image=image)
     text = response.text_annotations[0].description if response.text_annotations else ""
-
+    
     lines = text.split("\n")
+    # Start with all fields as None
     extracted_data = {
-        "first_name": "Not Found",
-        "middle_name": "Not Found",
-        "last_name": "Not Found",
-        "dob": "Not Found",
-        "gender": "Not Found"
+        "first_name": None,
+        "middle_name": None,
+        "last_name": None,
+        "dob": None,
+        "gender": None
     }
     last_name_index = -1  
 
     for i, line in enumerate(lines):
         if "ID" in line:
-            if i + 1 < len(lines) and re.match(r"^\d{3}\s?\d{3}\s?\d{3}$", lines[i + 1]):  
+            if i + 1 < len(lines) and re.match(r"^\d{3}\s?\d{3}\s?\d{3}$", lines[i + 1]):
                 last_name_index = i + 2  # Assume last name is right after ID
             else:
                 id_match = re.search(r"ID\s*[:#]?\s*(\d{3}\s?\d{3}\s?\d{3})", line)
                 if id_match:
                     last_name_index = i + 1  # Assume last name is next line
 
-        # ✅ Extract Last Name (after ID reference)
-        if last_name_index < len(lines) and last_name_index != -1:
+        if last_name_index != -1 and last_name_index < len(lines):
             extracted_data["last_name"] = lines[last_name_index].strip()
 
-        # ✅ Extract First & Middle Name (after Last Name) & Split into Separate Fields
-        if last_name_index + 1 < len(lines):
+        if last_name_index != -1 and last_name_index + 1 < len(lines):
             full_name = lines[last_name_index + 1].strip()
             name_parts = full_name.split()
+            extracted_data["first_name"] = name_parts[0] if len(name_parts) > 0 else None
+            extracted_data["middle_name"] = " ".join(name_parts[1:]) if len(name_parts) > 1 else None
 
-            extracted_data["first_name"] = name_parts[0] if len(name_parts) > 0 else "Not Found"
-            extracted_data["middle_name"] = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Not Found"
-
-        # ✅ Extract DOB
         dob_match = re.search(r"DOB\s*[:#]?\s*(\d{2}/\d{2}/\d{4})", line)
         if dob_match:
             extracted_data["dob"] = dob_match.group(1)
 
-        # ✅ Extract Sex
         sex_match = re.search(r"\b(?:SEX[:\s]*)?(M|F)\b", line)
         if sex_match:
             extracted_data["gender"] = "Male" if sex_match.group(1) == "M" else "Female"
 
     return extracted_data
 
-# ✅ API Route for File Upload & OCR
 @app.route("/upload", methods=["POST"])
 def upload_image():
     if "file" not in request.files:
@@ -69,9 +62,27 @@ def upload_image():
 
     file = request.files["file"]
     image_data = file.read()
-    
+
     extracted_data = extract_info_from_image(image_data)
-    return jsonify(extracted_data)  
+    # Filter out fields that are None
+    clean_data = {k: v for k, v in extracted_data.items() if v is not None}
+
+    # Function to truncate a string to 10 characters
+    def truncate(value: str) -> str:
+        return value[:10]
+
+    # Truncate first_name and last_name if they exist
+    if "first_name" in clean_data:
+        clean_data["first_name"] = truncate(clean_data["first_name"])
+    if "last_name" in clean_data:
+        clean_data["last_name"] = truncate(clean_data["last_name"])
+
+    # Create a combined field from first_name and last_name, truncated to 10 characters
+    if "first_name" in clean_data or "last_name" in clean_data:
+        combined = (clean_data.get("first_name", "") + clean_data.get("last_name", "")).strip()
+        clean_data["combined"] = truncate(combined)
+
+    return jsonify(clean_data)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
